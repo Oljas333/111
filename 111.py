@@ -1,104 +1,115 @@
-from random import *
+import sys
+from random import choice, randint
+from PyQt5.QtWidgets import (
+    QApplication, QWidget, QLabel, QPushButton, QVBoxLayout,
+    QHBoxLayout, QLineEdit, QTextEdit, QMessageBox
+)
 
-# алгоритм игры
-def guessing_game(x, y):
-    phrases_too_much = ['Ох, слишком много! Попробуй еще раз', 'Многовато будет!', 'Ого-го, это слишком много!',
-                        'Много!', 'Бери ниже', 'Многовато!', 'Нужно меньшее число!']
-    phrases_too_little = ['Ох, слишком мало! Попробуй еще раз', 'Маловато будет!', 'Эх, это слишком мало!',
-                        'Мало!', 'Бери выше', 'Маловато!', 'Нужно большее число!']
-    phrases_almost = ['Почти угадал!', 'Горячо, но не очень', 'Уже рядом', 'Ты близок', 'Ты уже рядом', 'Ну же, почти',
-                      'Горячо!']
-    phrases_guessed = ['Поздравляю! Ты угадал моё число :)', 'Молодец! Ты угадал :)', 'Ура, ты угадал! :)']
-    phrases_too_soon = ['Ого, так быстро!', 'Да ты волшебник! Ты угадал моё число', 'Скажи честно, ты подглядывал?',
-                        'У тебя отличная интуиция!', 'Даже я бы не смог отгадать так быстро!']
-    if x > y:
-        x, y = y, x
-        num_0 = randint(x, y)
-        print('Я загадал число от', x, 'до', y, 'Попробуй угадать!')
-    else:
-        num_0 = randint(x, y)
-        print('Я загадал число от', x, 'до', y, 'Попробуй угадать!')
-    count = 0
-    while True:
-        num_1 = int(input())
-        count += 1
-        if num_1 == num_0:
-            if count == 1:
-                print('Скажи честно, ты подглядывал?')
-                if input('Хочешь сыграть еще раз? Введи "да" или "нет" ').lower() in ['да', 'lf']:
-                    start()
-                else:
-                    print('Приходи, когда появится желание сыграть снова :)')
-                    break
-            elif 1 <= count <= 5:
-                print(choice(phrases_too_soon))
-                if input('Хочешь сыграть еще раз? Введи "да" или "нет" ').lower() in ['да', 'lf']:
-                    start()
-                else:
-                    print('Приходи, когда появится желание сыграть снова :)')
-                    break
+class GuessingGame(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle('Игра "Угадай число"')
+        self.setGeometry(100, 100, 500, 400)
+        self.initUI()
+
+        self.num_to_guess = None
+        self.count = 0
+
+    def initUI(self):
+        layout = QVBoxLayout()
+
+        self.rules = QLabel('Добро пожаловать в игру "Угадай число"!\nВведи границы диапазона и попробуй угадать число.')
+        layout.addWidget(self.rules)
+
+        hlayout_range = QHBoxLayout()
+        self.input_x = QLineEdit()
+        self.input_x.setPlaceholderText('Первая граница')
+        self.input_y = QLineEdit()
+        self.input_y.setPlaceholderText('Вторая граница')
+        self.set_range_button = QPushButton('Задать диапазон')
+        self.set_range_button.clicked.connect(self.set_range)
+        hlayout_range.addWidget(self.input_x)
+        hlayout_range.addWidget(self.input_y)
+        hlayout_range.addWidget(self.set_range_button)
+        layout.addLayout(hlayout_range)
+
+        self.guess_input = QLineEdit()
+        self.guess_input.setPlaceholderText('Твоя попытка')
+        layout.addWidget(self.guess_input)
+
+        self.guess_button = QPushButton('Проверить')
+        self.guess_button.clicked.connect(self.check_guess)
+        layout.addWidget(self.guess_button)
+
+        self.feedback = QLabel('')
+        layout.addWidget(self.feedback)
+
+        self.restart_button = QPushButton('Сыграть заново')
+        self.restart_button.clicked.connect(self.restart_game)
+        layout.addWidget(self.restart_button)
+
+        self.setLayout(layout)
+
+    def set_range(self):
+        try:
+            x = int(self.input_x.text())
+            y = int(self.input_y.text())
+            if x == y:
+                self.feedback.setText('Границы не должны совпадать.')
+                return
+            if x > y:
+                x, y = y, x
+            self.num_to_guess = randint(x, y)
+            self.count = 0
+            self.feedback.setText(f'Я загадал число от {x} до {y}. Попробуй угадать!')
+        except ValueError:
+            self.feedback.setText('Введите корректные числа.')
+
+    def check_guess(self):
+        if self.num_to_guess is None:
+            self.feedback.setText('Сначала задай диапазон.')
+            return
+
+        try:
+            guess = int(self.guess_input.text())
+        except ValueError:
+            self.feedback.setText('Это не число.')
+            return
+
+        self.count += 1
+        diff = abs(guess - self.num_to_guess)
+
+        too_much = ['Многовато!', 'Бери ниже', 'Нужно меньшее число!']
+        too_little = ['Маловато!', 'Бери выше', 'Нужно большее число!']
+        almost = ['Ты близок!', 'Горячо!', 'Уже рядом!']
+        guessed = ['Поздравляю! Ты угадал моё число :)', 'Молодец! Ты угадал :)']
+        too_soon = ['Ого, так быстро!', 'Да ты волшебник!', 'Ты угадал слишком быстро!']
+
+        if guess == self.num_to_guess:
+            if self.count == 1:
+                message = 'Скажи честно, ты подглядывал?'
+            elif self.count <= 5:
+                message = choice(too_soon)
             else:
-                print(choice(phrases_guessed))
-                if input('Хочешь сыграть еще раз? Введи "да" или "нет" ').lower() in ['да', 'lf']:
-                    start()
-                else:
-                    print('Приходи, когда появится желание сыграть снова :)')
-                    break
-        elif num_1 > num_0:
-            if abs(num_1 - num_0) < 5:
-                print(choice(phrases_too_much), choice(phrases_almost), sep='\n')
-            else:
-                print(choice(phrases_too_much))
-        elif num_1 < num_0:
-            if abs(num_1 - num_0) < 5:
-                print(choice(phrases_too_little), choice(phrases_almost),  sep='\n')
-            else:
-                print(choice(phrases_too_little))
+                message = choice(guessed)
+            self.feedback.setText(f'{message}\nПопыток: {self.count}')
+        elif guess > self.num_to_guess:
+            msg = choice(too_much)
+            self.feedback.setText(f'{msg}\n{choice(almost) if diff < 5 else ""}')
+        elif guess < self.num_to_guess:
+            msg = choice(too_little)
+            self.feedback.setText(f'{msg}\n{choice(almost) if diff < 5 else ""}')
 
-# описание правил
-def game_rules():
-    print('Отлично! Давай ознакомлю тебя с правилами игры.')
-    print('Я загадаю число, а ты будешь его отгадывать.')
-    print('Диапазон чисел ты выберешь сам.')
-    print('К примеру, если ты укажешь диапазон чисел от 0 до 100, я не смогу загадать число "101" :)')
-    print('Я попрошу тебя ввести границы диапазона. Границы не должны совпадать! Так играть мы не сможем.')
-    input('А теперь напиши что-нибудь, чтобы я был уверен, что ты понял правила игры :)')
+    def restart_game(self):
+        self.input_x.clear()
+        self.input_y.clear()
+        self.guess_input.clear()
+        self.feedback.setText('')
+        self.num_to_guess = None
+        self.count = 0
 
-# проверка правильности
-def is_valid_x(x):
-    if x.isdigit() is False:
-        print('Ты ввел не число :(')
-        print('Что ж, ладно, введи новые числа.')
-        start()
-
-def is_valid_xy(x, y):
-    while x == y:
-        print('Ты ввел одинаковые числа. Я же говорил, что так играть мы не сможем :(')
-        print('Что ж, ладно, введи новое число.')
-        start()
-    if y.isdigit() is False:
-        print('Я запутался :( Это не число')
-        print('Давай заново :)')
-        start()
-    else:
-        return True
-
-# запуск игры
-def start():
-    x = input('Введи первую границу диапазона: ')
-    is_valid_x(x)
-    y = input('Введи вторую границу диапазона: ')
-    if is_valid_xy(x, y) is True:
-        x, y = int(x), int(y)
-        guessing_game(x, y)
-
-# приглашение в игру
-if input('Приветствую тебя в программе Олжаса! Не желаешь сыграть в игру? Введи "да" или "нет" ').lower() in ['да', 'lf']:
-    game_rules()
-    start()
-else:
-    if input('Это не займёт много времени и сил. Если всё таки надумал, введи "да" :)').lower() in ['да', 'lf']:
-        game_rules()
-        start()
-    else:
-        print('Приходи, когда появится желание сыграть :)')да
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    game = GuessingGame()
+    game.show()
+    sys.exit(app.exec_())
